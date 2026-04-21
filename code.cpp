@@ -24,53 +24,83 @@ struct Constraint {
     int i, j, e;
 };
 
-int parent[4000005];
-int find(int i) {
-    if (parent[i] == i) return i;
-    return parent[i] = find(parent[i]);
+struct Node {
+    int val;
+    int* ptr;
+};
+
+bool compareNodes(const Node& a, const Node& b) {
+    return a.val < b.val;
 }
+
+int parent[4000005];
+int sz[4000005];
+
+int find(int i) {
+    int root = i;
+    while (parent[root] != root) root = parent[root];
+    while (parent[i] != root) {
+        int next = parent[i];
+        parent[i] = root;
+        i = next;
+    }
+    return root;
+}
+
+void unite(int i, int j) {
+    int root_i = find(i);
+    int root_j = find(j);
+    if (root_i != root_j) {
+        if (sz[root_i] < sz[root_j]) {
+            parent[root_i] = root_j;
+            sz[root_j] += sz[root_i];
+        } else {
+            parent[root_j] = root_i;
+            sz[root_i] += sz[root_j];
+        }
+    }
+}
+
+vector<Constraint> constraints;
+vector<Node> nodes;
 
 void solve() {
     int n = read();
     if (n == -1) return;
-    vector<Constraint> constraints(n);
-    vector<int> coords;
-    coords.reserve(2 * n);
+    constraints.assign(n, {0, 0, 0});
+    nodes.clear();
+    nodes.reserve(2 * n);
     for (int k = 0; k < n; ++k) {
         constraints[k].i = read();
         constraints[k].j = read();
         constraints[k].e = read();
-        coords.push_back(constraints[k].i);
-        coords.push_back(constraints[k].j);
+        nodes.push_back({constraints[k].i, &constraints[k].i});
+        nodes.push_back({constraints[k].j, &constraints[k].j});
     }
-    sort(coords.begin(), coords.end());
-    coords.erase(unique(coords.begin(), coords.end()), coords.end());
+    sort(nodes.begin(), nodes.end(), compareNodes);
+    int rank = 0;
+    for (int i = 0; i < (int)nodes.size(); ++i) {
+        if (i == 0 || nodes[i].val != nodes[i - 1].val) {
+            rank++;
+        }
+        *nodes[i].ptr = rank;
+    }
 
-    auto get_coord = [&](int x) {
-        return lower_bound(coords.begin(), coords.end(), x) - coords.begin() + 1;
-    };
-
-    int m = coords.size();
-    for (int i = 1; i <= m; ++i) parent[i] = i;
+    for (int i = 1; i <= rank; ++i) {
+        parent[i] = i;
+        sz[i] = 1;
+    }
 
     for (int k = 0; k < n; ++k) {
         if (constraints[k].e == 1) {
-            int u = get_coord(constraints[k].i);
-            int v = get_coord(constraints[k].j);
-            int root_u = find(u);
-            int root_v = find(v);
-            if (root_u != root_v) {
-                parent[root_u] = root_v;
-            }
+            unite(constraints[k].i, constraints[k].j);
         }
     }
 
     bool possible = true;
     for (int k = 0; k < n; ++k) {
         if (constraints[k].e == 0) {
-            int u = get_coord(constraints[k].i);
-            int v = get_coord(constraints[k].j);
-            if (find(u) == find(v)) {
+            if (find(constraints[k].i) == find(constraints[k].j)) {
                 possible = false;
                 break;
             }
@@ -84,6 +114,8 @@ void solve() {
 int main() {
     int t = read();
     if (t == -1) return 0;
+    constraints.reserve(2000000);
+    nodes.reserve(4000000);
     while (t--) {
         solve();
     }
